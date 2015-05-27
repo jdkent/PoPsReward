@@ -23,10 +23,10 @@ KbName('UnifyKeyNames') %so that key bindings work across operating systems.
 %SCREEN SET UP
 %--------------------------------
 %X dimension of screen
-Screen_X_dim = 1366;
+Screen_X_dim = 1280;
 
 %Y dimension of screen
-Screen_Y_dim = 768;
+Screen_Y_dim = 1024;
 %--------------------------------
 
 
@@ -70,8 +70,8 @@ RewardWait= 0.2;
 RewardTime = 2;
 
 %What range will the inter stimulus interval be (seconds)?
-MinISI = 0.1;
-MaxISI = 1.0;
+MinISI = 1.0;
+MaxISI = 1.5;
 %-------------------------------
 
 
@@ -140,7 +140,7 @@ white=WhiteIndex(window);
 %	Present Instruction/Start Window
 %-----------------------------------------------------------------
 Instructions1 = imread('CRcaptureInst1.jpg');
-Instructions2 = imread('PopsReward_fMRI_INST.jpg');
+Instructions2 = imread('PopsReward_INST.jpg');
 
 Screen('PutImage', window, Instructions1, rect);
 Screen(window, 'Flip');
@@ -149,14 +149,6 @@ KbWait([],2);
 Screen('PutImage', window, Instructions2, rect);
 Screen(window, 'Flip');
 KbWait([],2);
-
-%-------------------------------------------------------------------
-% Created by Zachary J Roper on 04/29/2013
-%
-% Parent .m file = PoPsReward.m
-%
-% PoPsReward -- Random
-%-------------------------------------------------------------------
  
 
 %-----------------------------------------------------------------
@@ -273,20 +265,23 @@ Rep_High_Reward = 0;
 
 radius = min(rect(3:4))*Scale_radius;
 
-
+%How big will the Distractors/Targets be?
 Obj_X_Dim = 100*Scale_Obj;
 Obj_Y_Dim = 106.66*Scale_Obj;
 
+%Fun Geometry, how to calculate sides of a 90-60-30 triangle.
 Corner_Translation_X = (radius/2)*sqrt(3);
 Corner_Translation_Y = radius/2;
 
-
+%Matlab specifies location in top left corner of object or something weird
+%like that so I need to offset the object to find its center coordinates.
 Coordinate_Correction_X = -((Obj_X_Dim)/2);
 Coordinate_Correction_Y = ((Obj_Y_Dim)/2);
 Obj_Center_X = CX + Coordinate_Correction_X;
 Obj_Center_Y = CY + Coordinate_Correction_Y;
 
-
+%Yay Geometry! If someone has a more concise solution to fitting 6 objects
+%around a circle equidistant to the center, I welcome them to it.
 Top = [(Obj_Center_X) ((Obj_Center_Y - Obj_Y_Dim)-radius) (Obj_Center_X + Obj_X_Dim) (Obj_Center_Y - radius) ];
 TopLeft = [(Obj_Center_X - Corner_Translation_X) ((Obj_Center_Y - Obj_Y_Dim) - Corner_Translation_Y) ((Obj_Center_X + Obj_X_Dim) - Corner_Translation_X) (Obj_Center_Y - Corner_Translation_Y)];
 TopRight = [(Obj_Center_X + Corner_Translation_X) ((Obj_Center_Y - Obj_Y_Dim) - Corner_Translation_Y) ((Obj_Center_X + Obj_X_Dim) + Corner_Translation_X) (Obj_Center_Y - Corner_Translation_Y)];
@@ -296,7 +291,6 @@ BottomRight = [(Obj_Center_X + Corner_Translation_X) ((Obj_Center_Y - Obj_Y_Dim)
 
 %CHANGE?
 %number of trials  in a block must be a factor of 96
-%Repeats Pattern of conditions every 
 if exptype == 'e'
 	for i=1 : TotalTrial
 
@@ -320,7 +314,9 @@ if exptype == 'e'
 	      
 		order(i) = i;
 
-	end
+    end
+    %Right now, Practice is completely random, everyone's practice will be
+    %a bit different.
 elseif exptype == 'p'
 		TargetReward = randi(2,1,Prac_Trials);
 		TargetRepetition = randi(2,1,Prac_Trials);
@@ -338,7 +334,8 @@ end
     %We want to make sure the first trial (which cannot be a repeat/switch)
     %is repeated again in the block so that there are an equal number of...
     %of switch and repeat trials.
-
+    %WARNING: this means each block will start with the same trial (i.e
+    %green target with red distractors at certain locations.
     for j=1 : Repetition
     	order(((j*blockSize)-(blockSize-2)):(j*blockSize)) = Shuffle(order(((j*blockSize)-(blockSize-2)):(j*blockSize)));
 	end
@@ -348,21 +345,34 @@ for i=1:TotalTrial
 	%-----------------------------------------------------------------
 	%  Search Locations
 	%-----------------------------------------------------------------
-
+    
+    %6 possible locations to choose from
 	LocationPossibilities = [[Top];[TopLeft];[TopRight];[Bottom];[BottomLeft];[BottomRight]];
 	LocationIndex = [1:6];
+    
+    %find the target location for the particular trial
 	TarLoc=LocationPossibilities(TargetLocation(order(i)),1:4);
+    
+    %Distractors can only be where the target isn't (makes sense)
 	DistLocIndex = Shuffle(LocationIndex(LocationIndex~=TargetLocation(order(i))));
+    
+    %Assign distractors posistions
 	for j=1:Num_Distractors
 		DistLoc(j,1:4) = LocationPossibilities(DistLocIndex(j),1:4);
-	end
+    end
+    
+    %pass variables into master vectors/arrays
 	MasterTarLoc(i,1:4) = TarLoc;
 	MasterDistLoc(1:Num_Distractors,1:4,i) = DistLoc(1:Num_Distractors,1:4);
+    
 	%-----------------------------------------------------------------
 	%  Selecting Distractor Identities
 	%-----------------------------------------------------------------
 
-
+    %This is pretty crappy, but I don't know how else to make sure the
+    %distractors are the right color and to randomly generate their
+    %orientation (while making sure orientation is relatively evenly
+    %balanced)
 	PossibleDistIndex=[1 2];
 	DistIndex=repmat(Shuffle(PossibleDistIndex),1,3);
 	DistIndex=DistIndex(1:end-1);
@@ -431,7 +441,13 @@ for i=1:TotalTrial
    	    end
 	end
 end
-%keyboard;
+
+
+
+%ACTUAL START OF SCRIPT (FOR PARTICIPANT)
+%As much as possible is defined beforehand to reduce the overhead of the
+%calculations that occur in the script, so that the timings of the stimuli
+%will be more accurate.
 for Trial = 1 : TotalTrial
     
 
@@ -719,7 +735,7 @@ end
     
 end %closes the for Trial=1:TotalTrial loop
 
-
+%END OF SCRIPT FOR PARTICIPANT
 
 
 
