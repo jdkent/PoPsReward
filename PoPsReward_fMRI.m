@@ -23,10 +23,10 @@ KbName('UnifyKeyNames') %so that key bindings work across operating systems.
 %SCREEN SET UP
 %--------------------------------
 %X dimension of screen
-Screen_X_dim = 640;
+Screen_X_dim = 1366;
 
 %Y dimension of screen
-Screen_Y_dim = 512;
+Screen_Y_dim = 768;
 %--------------------------------
 
 
@@ -37,12 +37,26 @@ Screen_Y_dim = 512;
 Scale_radius = 0.2;
 
 %This scales the size of the objects appearing on the screen.
-Scale_Obj = 0.5;
+Scale_Obj = 1;
 
 %This determines how many distractors are present (max=5)
 Num_Distractors = 2;
 %---------------------------------
 
+%Reward Presentation
+%---------------------------------
+%High reward
+High_Reward_Img = 'test_bill00006.png';
+
+%Low reward
+Low_Reward_Img = 'test_bill00002.png';
+%--------------------------------
+
+%Key press bindings
+%--------------------------------
+%To check available names, type KbName('KeyNamesOSX')
+Left_Key_Press = 'LeftArrow';
+Right_Key_Press = 'RightArrow';
 
 %TIMING INFORMATION
 %---------------------------------
@@ -56,11 +70,21 @@ RewardWait= 0.2;
 RewardTime = 2;
 
 %What range will the inter stimulus interval be (seconds)?
-MinISI = 0.3;
-MaxISI = 0.7;
+MinISI = 0.1;
+MaxISI = 1.0;
 %-------------------------------
 
 
+%PRACTICE VARIABLES
+%-------------------------------
+%number of practice trials
+Prac_Trials=20;
+%-------------------------------
+
+
+%-----------------------------------------------------------------
+%USER CHANGES END, CONTINUE AT YOUR OWN RISK
+%-----------------------------------------------------------------
 
 %-----------------------------------------------------------------
 %	Set up subject number and data file
@@ -73,6 +97,18 @@ ID = str2double(SN);
 
 if exptype == 'e'
     FileName =  strcat(SN, '_PoPsReward.csv'); 
+    if exist(FileName,'file')
+        resp=input(['the file ' FileName ' already exists. do you want to overwrite it? [Type ok for overwrite]'], 's');
+        if ~strcmp(resp,'ok') %abort experiment if overwriting was not confirmed
+            disp('experiment aborted')
+            return
+        end
+    end
+    FID = fopen(FileName, 'w');
+    fprintf(FID, 'Order, Trial, TRep, TColor, TRepCount, TOrient, TLoc, Subject, Block, Reward, HighRewardRepCount, LowRewardRepCount, Response, Accuracy, RT, ScanStartHour, ScanStartMin, ScanStartSec, Hour, Min, Sec, ElapsedTime, SOA\n');
+    fclose(FID);
+elseif exptype == 'p'
+	FileName =  strcat(SN, '_PoPsReward_practice.csv'); 
     if exist(FileName,'file')
         resp=input(['the file ' FileName ' already exists. do you want to overwrite it? [Type ok for overwrite]'], 's');
         if ~strcmp(resp,'ok') %abort experiment if overwriting was not confirmed
@@ -161,7 +197,11 @@ TLoc = 6; %Loc1 = 12:00; Loc4 = 6:00
 Repetition = 5; 
 TotalTrial = (TRep*TColor*TOrient*TLoc*TReward*Repetition)+Repetition; % Total Trials = 960+Repetition
 blockSize = (TRep*TColor*TOrient*TLoc*TReward)+1; %blockSize = 96+1
-
+if exptype == 'p' 
+	TotalTrial = Prac_Trials;
+	blockSize = Prac_Trials;
+	Repetition = 1;
+end
 
 %-----------------------------------------------------------------
 %  Ancillary controls
@@ -257,27 +297,37 @@ BottomRight = [(Obj_Center_X + Corner_Translation_X) ((Obj_Center_Y - Obj_Y_Dim)
 %CHANGE?
 %number of trials  in a block must be a factor of 96
 %Repeats Pattern of conditions every 
-for i=1 : TotalTrial
+if exptype == 'e'
+	for i=1 : TotalTrial
 
-	TargetReward(i) = mod((i-1), TReward);
-	TargetReward(i) = floor(TargetReward(i))+1;
+		TargetReward(i) = mod((i-1), TReward);
+		TargetReward(i) = floor(TargetReward(i))+1;
 
-    TargetRepetition(i) = mod((i-1)/2, TRep);
-	TargetRepetition(i) = floor(TargetRepetition(i))+1; 
-    
-    %Is this necessary since it is defined by Repetition?
-    %Only has an effect on the first trial of a block
-    TargetColor(i) = mod((i-1)/4, TColor);
-	TargetColor(i) = floor(TargetColor(i))+1;
-    
-	TargetOrientation(i) = mod((i-1)/8, TOrient);
-	TargetOrientation(i) = floor(TargetOrientation(i))+1;
-        
-    TargetLocation(i) = mod((i-1)/16, TLoc);
-	TargetLocation(i) = floor(TargetLocation(i))+1;
-      
-	order(i) = i;
+	    TargetRepetition(i) = mod((i-1)/2, TRep);
+		TargetRepetition(i) = floor(TargetRepetition(i))+1; 
+	    
+	    %Is this necessary since it is defined by Repetition?
+	    %Only has an effect on the first trial of a block
+	    %WARNING: Does not guarantee balance, due to above comments
+	    TargetColor(i) = mod((i-1)/4, TColor);
+		TargetColor(i) = floor(TargetColor(i))+1;
+	    
+		TargetOrientation(i) = mod((i-1)/8, TOrient);
+		TargetOrientation(i) = floor(TargetOrientation(i))+1;
+	        
+	    TargetLocation(i) = mod((i-1)/16, TLoc);
+		TargetLocation(i) = floor(TargetLocation(i))+1;
+	      
+		order(i) = i;
 
+	end
+elseif exptype == 'p'
+		TargetReward = randi(2,1,Prac_Trials);
+		TargetRepetition = randi(2,1,Prac_Trials);
+		TargetColor = randi(2,1,Prac_Trials);
+		TargetOrientation = randi(2,1,Prac_Trials);
+		TargetLocation = randi(6,1,Prac_Trials);
+		order = randperm(Prac_Trials);
 end
 
 %-----------------------------------------------------------------
@@ -520,9 +570,9 @@ end
 % Response Coding
 %---------------------------------------------------
 
-if strcmp(Resp,'2@') %Down CHANGE LEFT '7&'
+if strcmp(Resp,Left_Key_Press) %Down CHANGE LEFT '7&'
     Response(Trial) = 1;
-elseif strcmp(Resp,'7&') %Up CHANGE RIGHT '2@'
+elseif strcmp(Resp,Right_Key_Press) %Up CHANGE RIGHT '2@'
 	Response(Trial) = 2;
 elseif strcmp(Resp,'t') %Timeout
 	Response(Trial) = 3;
@@ -556,9 +606,10 @@ Screen('Flip', window);
 %James Reward Display
 %-------------------------------------------------------------------
 
+if exptype == 'e'
 
-HighBill = imread('20Bill.jpg');
-LowBill = imread('1Bill.jpg');
+HighBill = imread(High_Reward_Img);
+LowBill = imread(Low_Reward_Img);
 
 WaitSecs(RewardWait); %separate response from reward
 
@@ -589,7 +640,7 @@ end
 
 WaitSecs(RewardTime);
 
-
+end
 
 Screen(window, 'FillRect', [0 0 0]);
 Screen(window, 'FillOval', white, [CX-5 CY-5 CX+5 CY+5]);
@@ -609,8 +660,6 @@ Screen('Flip', window);
 %---------------------------------------------------
 % Saving the file
 %---------------------------------------------------
-if exptype == 'e'
-    
    Block(Trial) = ceil(Trial/blockSize);
 
    RT(Trial)=(End_Time-Begin_Time)*1000; 
@@ -628,13 +677,14 @@ if exptype == 'e'
         fclose(FID);
     end
 
-%-------------------------------------------------------------------
-% Breaks
-%-------------------------------------------------------------------
+ %-------------------------------------------------------------------
+ % Breaks
+ %-------------------------------------------------------------------
 
-BreakText = ['Take a break.\n\n\n\n\n\n' 'Press SPACEBAR to continue.'];
+if exptype == 'e'
+ BreakText = ['Take a break.\n\n\n\n\n\n' 'Press SPACEBAR to continue.'];
 
-if mod(Trial,blockSize) == 0
+ if mod(Trial,blockSize) == 0
     DrawFormattedText (window, BreakText, 'center', 'center', white);
     Screen('Flip', window);
     
@@ -663,11 +713,9 @@ if mod(Trial,blockSize) == 0
     Screen('Flip', window);
     
     WaitSecs(1);
-       
+  end
 end
-
-end
-%-------------------End Loop-----------------------------------------    
+  %-------------------End Loop-----------------------------------------    
     
 end %closes the for Trial=1:TotalTrial loop
 
